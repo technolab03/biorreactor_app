@@ -67,12 +67,16 @@ if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 
             col1, col2 = st.columns(2)
 
             with col1:
+                # Extraer desde la base de datos las colecciones disponibles que comienzan con "dominio_"
                 dominios_disponibles = sorted([col for col in db.list_collection_names() if col.startswith("dominio_")])
+                
+                # Elegir por defecto "dominio_ucn", si existe
                 indice_por_defecto = dominios_disponibles.index("dominio_ucn") if "dominio_ucn" in dominios_disponibles else 0
                 
                 # Recuperar dominio guardado en session_state o mostrar por defecto
                 dominio_inicial = st.session_state.get("dominio_seleccionado", dominios_disponibles[indice_por_defecto])
 
+                # Mostrar selectbox con las opciones para que el usuario elija
                 dominio_seleccionado = st.selectbox(
                     "🌐 Selecciona un dominio:",
                     dominios_disponibles,
@@ -80,16 +84,19 @@ if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 
                 )
 
             with col2:
+                # Cargar los datos desde el dominio seleccionado
                 data = cargar_datos_cacheados(dominio_seleccionado)
                 if not data:
                     st.warning("⚠️ No hay datos disponibles.")
                     st.stop()
 
+                # Convertir a dataframe y convierte la columna "tiempo" a tipo fecha
                 df = pd.DataFrame(data)
                 df = df[df['tiempo'].notna()]
                 df['tiempo'] = pd.to_datetime(df['tiempo'])
                 df = df.sort_values(by='tiempo')
 
+                # Determinar los límites mínimo y máximo para el calendario 
                 fecha_min = df['tiempo'].min().date()
                 fecha_max = df['tiempo'].max().date()
             
@@ -97,6 +104,7 @@ if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 
                 fecha_inicio_default = st.session_state.get("fecha_inicio", fecha_min)
                 fecha_fin_default = st.session_state.get("fecha_fin", fecha_max)
 
+                # Mostrar un selector donde el usuario elige el rango de fechas
                 fecha_inicio, fecha_fin = st.date_input(
                     "📅 Selecciona un rango de fechas:",
                     value=(fecha_min, fecha_max),
@@ -104,15 +112,17 @@ if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 
                     max_value=fecha_max
                 )
 
+            # Botón de formulario para confirmar filtros
             form_enviado = st.form_submit_button("Aplicar filtros")
 
-            # Detectar cambios en los filtros
+            # Detectar cambios en los filtros, si se cambió el dominio o las fechas respecto a las que había en session_state
             cambios = (
                 dominio_seleccionado != st.session_state.get("dominio_seleccionado") or
                 fecha_inicio != st.session_state.get("fecha_inicio") or
                 fecha_fin != st.session_state.get("fecha_fin")
             )
 
+            # Se guardan los nuevos valores en session_state
             if form_enviado and cambios:
                 st.session_state["dominio_seleccionado"] = dominio_seleccionado
                 st.session_state["fecha_inicio"] = fecha_inicio
@@ -124,18 +134,19 @@ if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 
     fecha_inicio = st.session_state.get("fecha_inicio", fecha_min)
     fecha_fin = st.session_state.get("fecha_fin", fecha_max)
 
-    # Filtrar datos por fechas
+    # Filtrar el dataframe por fechas, se filtra por el rango de fechas elegido, si no hay datos en ese rango, se muestra una advertencia
     df = df[(df['tiempo'].dt.date >= fecha_inicio) & (df['tiempo'].dt.date <= fecha_fin)]
     if df.empty:
         st.warning("⚠️ No hay datos dentro del rango de fechas seleccionado.")
         st.stop()
 
-    # Mostrar filtro global y obtener los ids filtrados globalmente para usar en las secciones
+    # Se muestra el filtro global para permitir al usuario seleccionar dispositivos
     ids_filtrados = mostrar_filtro_global(df, dominio_seleccionado)
 
-    # Luego filtrar el df para usar solo dispositivos seleccionados:
+    # Luego filtrar el df para usar los dispositivos seleccionados
     df = df[df["id_dispositivo"].isin(ids_filtrados)]
 
+    # Si no hay datos luego del filtro, se muestra advertencia y se detiene la ejecución
     if df.empty:
         st.warning("⚠️ No hay datos para los dispositivos seleccionados.")
         st.stop()

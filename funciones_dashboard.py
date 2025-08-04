@@ -25,11 +25,14 @@ def parsear_decimal(valor_str, nombre_campo):
 
 # --- FILTRO GLOBAL DE DISPOSITIVOS ---
 def mostrar_filtro_global(df, dominio_actual):
+    # Obtener la lista única de dispositivos ordenada
     dispositivos = sorted(df["id_dispositivo"].dropna().unique())
+
+    # Define claves únicas para session_state
     clave_ids = f"ids_filtrados_{dominio_actual}"
     clave_checkbox = f"checkbox_todos_{dominio_actual}"
 
-    # Inicializar session_state
+    # Inicializar session_state si no existe
     if clave_ids not in st.session_state:
         st.session_state[clave_ids] = dispositivos.copy()
     if clave_checkbox not in st.session_state:
@@ -42,6 +45,7 @@ def mostrar_filtro_global(df, dominio_actual):
             key=f"checkbox_todos_widget_{dominio_actual}"
         )
 
+        # Detectar cambios en el checkbox y actualiza el session_state
         if checkbox_val != st.session_state[clave_checkbox]:
             st.session_state[clave_checkbox] = checkbox_val
             if checkbox_val:
@@ -57,16 +61,18 @@ def mostrar_filtro_global(df, dominio_actual):
             key=f"multiselect_global_{dominio_actual}"
         )
 
+        # Detectar cambios en la selección manual
         if set(seleccion) != set(st.session_state[clave_ids]):
             st.session_state[clave_ids] = seleccion
             if set(seleccion) == set(dispositivos):
-                st.session_state[clave_checkbox] = True
+                st.session_state[clave_checkbox] = True # Si seleccionó todos, checkbox activo
             elif len(seleccion) == 0:
-                st.session_state[clave_checkbox] = False
+                st.session_state[clave_checkbox] = False # Si no seleccionó ninguno, checkbox desactivado
             else:
-                st.session_state[clave_checkbox] = False
+                st.session_state[clave_checkbox] = False # Si seleccionó algunos, checkbox desactivado
             st.rerun()
 
+    # Retornar la lista actual de dispositivos seleccionados
     return st.session_state[clave_ids]
 
 # --- MÉTRICAS ---
@@ -77,8 +83,10 @@ def mostrar_metricas(df):
         st.warning("⚠️ No se encontraron IDs de dispositivos en los datos.")
         return
 
+    # Cargar los dispositivos filtrados, usando el filtro global para saber qué dispositivos mostrar
     dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
     clave_estado_ids = f"ids_filtrados_{dominio_actual}"
+
     # Obtener lista original ordenada alfabéticamente
     dispositivos_ordenados = sorted(df["id_dispositivo"].dropna().unique())
 
@@ -88,23 +96,29 @@ def mostrar_metricas(df):
     # Ordenar ids_filtrados manteniendo el orden alfabético original
     ids_filtrados_ordenados = [d for d in dispositivos_ordenados if d in ids_filtrados]
 
+    # Filtrar el dataframe solo con los dispositivos seleccionados y configurar la zona horaria
     df_filtrado = df[df["id_dispositivo"].isin(ids_filtrados_ordenados)]
     chile_tz = pytz.timezone("America/Santiago")
 
+    # Iterar por cada dispositivo seleccionado
     for disp in ids_filtrados_ordenados:
+        # Ordenar por tiempo descendente y toma la fila más reciente
         df_disp = df_filtrado[df_filtrado["id_dispositivo"] == disp].sort_values(by="tiempo", ascending=False)
         if df_disp.empty:
             continue
-
         ultima_fecha = df_disp["tiempo"].iloc[0]
         if ultima_fecha.tzinfo is None:
             ultima_fecha = chile_tz.localize(ultima_fecha)
         else:
             ultima_fecha = ultima_fecha.astimezone(chile_tz)
+
+        # Convertir la fecha a formato legible
         tiempo_str = ultima_fecha.strftime('%Y-%m-%d %H:%M:%S')
 
+        # Mostrar título de dispositivo y última medición
         st.markdown(f"**🔎 Dispositivo:** `{disp}`  \n🕒 Última medición: `{tiempo_str}`")
 
+        # Mostrar últimas métricas de cada variable en columnas 
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("🌡️ Temperatura", f"{df_disp['temperatura'].iloc[0]:.2f} °C")
         col2.metric("🌊 pH", f"{df_disp['ph'].iloc[0]:.2f}")
@@ -112,12 +126,14 @@ def mostrar_metricas(df):
         col4.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} %")
         col5.metric("⚡ Conductividad", f"{df_disp['conductividad'].iloc[0]:.2f} ppm")
 
+        # Agregar línea divisora entre dispositivos
         st.markdown("---")
 
 # --- REPORTE DE SENSORES ---
 def mostrar_reporte(df):
     st.subheader("📋 Reporte de Sensores")
 
+    # Verificar si existe la columna "id_dispositivo"
     if "id_dispositivo" in df.columns:
         dispositivos = sorted(df["id_dispositivo"].dropna().unique())
 
@@ -125,14 +141,19 @@ def mostrar_reporte(df):
         dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
         clave_estado_ids = f"ids_filtrados_{dominio_actual}"
 
+        # Recuperar la lista de dispositivos seleccionados por el usuario desde session_state
         ids_filtrados = st.session_state.get(clave_estado_ids, dispositivos)
+
+        # Filtrar el dataframe solo con esos dispositivos seleccionados
         df_filtrado = df[df["id_dispositivo"].isin(ids_filtrados)]
+    # Si no hay columna "id_dispositivo", se muestra todo el dataframe sin filtro
     else:
         df_filtrado = df
 
     # Botón de descarga para todos los datos filtrados (sin paginar)
     if not df_filtrado.empty:
         csv_data = df_filtrado.to_csv(index=False).encode('utf-8')
+        # Mostrar los dispositivos filtrados en el nombre del archivo
         ids_str = "_".join(st.session_state.get(clave_estado_ids, []))
         nombre_archivo = f"datos_{ids_str}.csv"
         st.download_button(
@@ -142,16 +163,17 @@ def mostrar_reporte(df):
             mime="text/csv"
         )
 
-    # Paginación
+    # Paginación de registros, para evitar mostrar tabla con muchos datos
     filas_por_pagina = 250
     total_filas = len(df_filtrado)
     paginas_totales = max((total_filas - 1) // filas_por_pagina + 1, 1)
 
+    # Inicializar y controlar la página actual
     if "pagina_actual" not in st.session_state:
         st.session_state.pagina_actual = 0
 
+    # Mostrar los botones de navegación y la página actual
     col1, col2, col3 = st.columns([1, 2, 1])
-
     with col1:
         if st.button("⬅️ Anterior") and st.session_state.pagina_actual > 0:
             st.session_state.pagina_actual -= 1
@@ -161,37 +183,52 @@ def mostrar_reporte(df):
     with col2:
         st.markdown(f"<div style='text-align: center; font-weight: bold;'>Página {st.session_state.pagina_actual + 1} de {paginas_totales}</div>", unsafe_allow_html=True)
 
+    # Mostrar la tabla de datos
     inicio = st.session_state.pagina_actual * filas_por_pagina
     fin = inicio + filas_por_pagina
+    # Invertir el dataframe para que los registros más reciente aparezcan arriba
     df_pagina = df_filtrado[::-1].iloc[inicio:fin]
+    # Crear dataframe para tabla interactiva
     st.dataframe(df_pagina, use_container_width=True)
+    # Agregar nota para rango mostrado en la tabla
     st.caption(f"Mostrando registros {inicio + 1} a {min(fin, total_filas)} de {total_filas}")
 
 # --- REGISTRO DE ALIMENTACIÓN ---
 def mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=None):
     st.subheader("🍽️ Registro de Alimentación")
 
+    # Verificar que lista de dispositivos seleccionados esté definida
     if ids_filtrados is None:
         ids_filtrados = []
 
-    # Mostrar historial colapsado
+    # Mostrar historial de alimentación expandible
     if registros:
         with st.expander("📄 Historial de alimentación por dispositivo"):
+            # Si hay registros, convertir en dataframe
             df_comida = pd.DataFrame(registros)
+
+            # Filtrar por dispositivos seleccionados
             df_comida = df_comida[df_comida["id_dispositivo"].isin(ids_filtrados)]
+
+            # Ordenar los registros por fecha descendente
             df_comida["tiempo"] = pd.to_datetime(df_comida["tiempo"])
             df_ordenado = df_comida.sort_values("tiempo", ascending=False)
             df_ordenado["tiempo"] = df_ordenado["tiempo"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+            # Mostrar solamente las columnas de tiempo e id_dispositivo
             st.dataframe(df_ordenado[["tiempo", "id_dispositivo"]], use_container_width=True)
     else:
         st.info("ℹ️ No hay registros de alimentación aún.")
         return
 
     try:
+        # Conexión a base de datos para obtener dispositivos dentro del dominio seleccionado
         client = MongoClient(MONGO_URI)
         db = client["biorreactor_app"]
         collection = db[dominio_seleccionado]
         dispositivos_db = collection.distinct("id_dispositivo")
+
+        # Filtrar solo los que están en ids_filtrados
         dispositivos_ordenados = sorted([d for d in dispositivos_db if d and d in ids_filtrados])
     except Exception as e:
         st.error(f"❌ Error al obtener dispositivos del dominio '{dominio_seleccionado}': {e}")
@@ -204,9 +241,11 @@ def mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=None)
     st.markdown("### 📋 Estado actual de alimentación por dispositivo")
     ahora_chile = datetime.now(pytz.timezone("America/Santiago"))
 
+    # Para cada dispositivo, obtener el último registro de alimentación
     for dispositivo in dispositivos_ordenados:
         registros_dispositivo = [r for r in registros if r["id_dispositivo"] == dispositivo]
         if registros_dispositivo:
+            #Calcular cuántos días han pasado desde ese último evento
             ultimo = max(registros_dispositivo, key=lambda x: x["tiempo"])
             ultima_fecha = pd.to_datetime(ultimo["tiempo"])
             dias_sin_alimentar = (ahora_chile.date() - ultima_fecha.date()).days
@@ -220,6 +259,7 @@ def mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=None)
             col1.markdown(f"**🆔 Nombre de dispositivo:**<br>{dispositivo}", unsafe_allow_html=True)
             col2.markdown(f"**📅 Última alimentación:**<br>{ultima_str}", unsafe_allow_html=True)
 
+            # Indicador de cuántos días han pasado sin alimentar
             if dias_sin_alimentar is None:
                 mensaje = "⚪ Sin registros"
                 color = "gray"
@@ -235,12 +275,15 @@ def mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=None)
 
             col3.markdown(f"**⏱️ Días sin alimentar:**<br><span style='color:{color}'>{mensaje}</span>", unsafe_allow_html=True)
 
+            # Botón para registrar alimentación por cada dispositivo
             with col4:
                 if st.button("🍽️ Alimentar", key=f"alimentar_{dispositivo}"):
+                    # Enviar un POST a la API para registrar el evento de alimentación
                     response = requests.post(
                         "https://biorreactor-app-api.onrender.com/api/registro_comida",
                         json={"evento": "comida", "id_dispositivo": dispositivo}
                     )
+                    # Si responde con éxito (201), muestra un mensaje y refresca la página
                     if response.status_code == 201:
                         st.success(f"✅ Alimentación registrada para {dispositivo}.")
                         st.rerun()
@@ -251,16 +294,17 @@ def mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=None)
 def mostrar_graficos(df):
     st.subheader("📈 Visualización de Sensores por Dispositivo")
 
+    # Obtener la lista única de dispositivos ordenada
     dispositivos = sorted(df["id_dispositivo"].dropna().unique())
     if not dispositivos:
         st.info("ℹ️ No hay dispositivos disponibles para el dominio y rango de fecha seleccionados.")
         return
 
-    # Inicializar estado si no existe
+    # Inicializar session_state si no existe y guardar la selección del usuario en la sesión
     if "dispositivo_seleccionado" not in st.session_state or st.session_state.dispositivo_seleccionado not in dispositivos:
         st.session_state.dispositivo_seleccionado = dispositivos[0]
 
-    # Mostrar selector selectbox con el estado actual
+    # Mostrar un selector para elegir el dispositivo
     id_seleccionado = st.selectbox(
         "Selecciona un dispositivo:",
         dispositivos,
@@ -268,11 +312,12 @@ def mostrar_graficos(df):
         key="selectbox_graficos"
     )
 
-    # Detectar cambios y actualizar sesión
+    # Detectar cambios en la selección y actualizar sesión
     if id_seleccionado != st.session_state.dispositivo_seleccionado:
         st.session_state.dispositivo_seleccionado = id_seleccionado
         st.rerun()
 
+    # Filtrar los datos por dispositivo seleccionado
     df_id = df[df["id_dispositivo"] == st.session_state.dispositivo_seleccionado]
 
     # Botón para descargar datos de dispositivo filtrado
@@ -283,6 +328,7 @@ def mostrar_graficos(df):
         mime='text/csv'
     )
 
+    # Diccionario de las variables para graficar
     variables = {
         "temperatura": ("🌡️ Temperatura", "°C", "red"),
         "ph": ("🌊 pH", "pH", "purple"),
@@ -291,10 +337,12 @@ def mostrar_graficos(df):
         "conductividad": ("⚡ Conductividad", "ppm", "orange"),
     }
 
+    # Crear pestañas para cada variable y pestaña adicional para comparar múltiples dispositivos
     tab_labels = list([nombre for (nombre, _, _) in variables.values()])
     tab_labels.append("📊 Comparación múltiple")
     tabs = st.tabs(tab_labels)
 
+    # Graficar individualmente la variable específica del dispositivo seleccionado dentro de cada pestaña
     for i, (var, (nombre, unidad, color)) in enumerate(variables.items()):
         with tabs[i]:
             if var in df_id.columns:
@@ -313,6 +361,7 @@ def mostrar_graficos(df):
             else:
                 st.warning(f"⚠️ No hay datos para '{var}' en {id_seleccionado}.")
 
+    # Seleccionar varios dispositivos y una variable a comparar
     with tabs[-1]:
         st.markdown("### 🔍 Comparación múltiple de dispositivos")
         seleccionados = st.multiselect("Selecciona dispositivos:", dispositivos, default=dispositivos[:2])
@@ -337,15 +386,21 @@ def mostrar_graficos(df):
 def mostrar_imagenes(db):
     st.subheader("🖼️ Visualización de Imágenes Capturadas")
 
+    # Acceder a la colección "imagenes_camara"
     collection = db["imagenes_camara"]
 
-    # Parámetros de filtrado 
+    # Filtros de entrada del usuario 
     col1, col2 = st.columns(2)
     with col1:
+        # Filtrar para mostrar imágenes capturadas ese día
         fecha_filtrada = st.date_input("📅 Filtrar por fecha (opcional):", value=None)
     with col2:
+        # Filtrar cuántas imágenes quiere ver (hasta un máximo de 50)
         cantidad = st.number_input("🔢 ¿Cuántas imágenes mostrar?", min_value=1, max_value=50, value=5, step=1)
 
+    # Consulta a MongoDB
+    # Al seleccionar una fecha, se filtra imágenes dentro de ese rango horario (desde el inicio al fin del día), 
+    # convirtiendo las zonas horarias desde Santiago a UTC, ya que MongoDB guarda en UTC
     query = {}
     if fecha_filtrada:
         inicio_dia = datetime.combine(fecha_filtrada, datetime.min.time()).replace(tzinfo=pytz.timezone("America/Santiago"))
@@ -355,27 +410,33 @@ def mostrar_imagenes(db):
             "$lte": fin_dia.astimezone(pytz.utc)
         }
 
+    # Buscar con el filtro anterior, y se ordenan por tiempo descendente 
+    # y se limita el número de resultados según el valor ingresado del usuario
     documentos = list(collection.find(query).sort("tiempo", -1).limit(cantidad))
 
     if not documentos:
         st.info("⚠️ No hay imágenes para mostrar con los filtros seleccionados.")
         return
 
-    # Mostrar imágenes en columnas
+    # Mostrar imágenes en columnas dinámicas
     cols = st.columns(len(documentos))
     for idx, doc in enumerate(documentos):
         if 'imagen' in doc and 'tiempo' in doc:
+            # Decodificar la cadena Base64 y se convierte a formato PIL.Image para mostrarla
             imagen_bytes = base64.b64decode(doc['imagen'])
             imagen = Image.open(BytesIO(imagen_bytes))
+            # Convertir la hora UTC a horario de Chile
             chile_tz = pytz.timezone("America/Santiago")
             tiempo_chile = doc["tiempo"].replace(tzinfo=pytz.utc).astimezone(chile_tz)
             tiempo_str = tiempo_chile.strftime('%Y-%m-%d %H:%M:%S')
+            # Mostrar la imagen junto con su fecha y hora en que fue tomada
             cols[idx].image(imagen, caption=f"Capturada el {tiempo_str}", use_container_width=True)
 
 # --- REGISTRO MANUAL ---
 def mostrar_registro_manual():
     st.subheader("✍️ Registro Manual de Variables")
 
+    # Recuperar el dominio y la lista de dispositivos seleccionados por el usuario
     dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
     ids = st.session_state.get(f"ids_filtrados_{dominio_actual}", [])
 
@@ -383,14 +444,16 @@ def mostrar_registro_manual():
         st.warning("⚠️ No hay dispositivos seleccionados para registrar manualmente.")
         return
 
+    # Al enviar un formulario exitoso en la sesión anterior, se muestra una notificación
     if st.session_state.get("registro_manual_exitoso"):
         st.success("✅ Registro manual enviado correctamente.")
         st.session_state.pop("registro_manual_exitoso")
 
-    # Mostrar un formulario por dispositivo
+    # Mostrar un formulario por cada dispositivo seleccionado
     for dispositivo in ids:
         st.markdown(f"📟 Dispositivo: `{dispositivo}`")
         with st.form(f"form_manual_{dispositivo}"):
+            # Mostrar 6 columnas con campos de entrada dentro de cada formulario
             col1, col2, col3, col4, col5, col6 = st.columns(6)
             with col1:
                 temperatura = st.text_input("🌡️ Temperatura (°C)", key=f"temp_{dispositivo}", help="Rango: 0.00 - 30.00 (°C)", placeholder="Ingrese el valor de temperatura")
@@ -404,7 +467,8 @@ def mostrar_registro_manual():
                 conductividad = st.text_input("⚡ Conductividad (ppm)", key=f"conduct_{dispositivo}", help="Rango: 0.00 - 3000.00 (ppm)", placeholder="Ingrese el valor de conductividad")
             with col6:
                 enviado = st.form_submit_button("📩 Enviar registro")
-                
+        
+        # Manejar el botón de envío
         if enviado:
             campos = {
                 "temperatura": temperatura,
@@ -414,10 +478,12 @@ def mostrar_registro_manual():
                 "conductividad": conductividad
             }
 
+            # Validar que al menos un campo esté lleno, o da error
             if all(v.strip() == "" for v in campos.values()):
                 st.error("❌ Debes ingresar al menos un valor.")
                 return
 
+            # Construir diccionario data, agregando la fecha actual en Santiago y nuevo campo "manual" por defecto en True
             data = {
                 "dominio": dominio_actual,
                 "id_dispositivo": dispositivo,
@@ -425,42 +491,52 @@ def mostrar_registro_manual():
                 "tiempo": datetime.now(pytz.timezone("America/Santiago")).isoformat()
             }
 
+            # Valores ingresados, convertirlos correctamente con función parsear_decimal()
             for campo, valor in campos.items():
                 if valor.strip():
                     data[campo] = parsear_decimal(valor, campo.capitalize())
 
+            # Hacer petición POST a la API
             response = requests.post("https://biorreactor-app-api.onrender.com/api/registro_manual", json=data)
 
+            # Si el servidor responde con éxito (201)
             if response.status_code == 201:
+                # Mostrar mensaje de éxito
                 st.success(f"✅ Registro enviado correctamente para `{dispositivo}`.")
                 st.session_state["registro_manual_exitoso"] = True
+                # Guardar dispositivo registrado en la sesión
                 st.session_state["ultimo_dispositivo_registrado"] = dispositivo
-                # Limpiar campos
+                # Limpiar campos del formulario
                 for campo in ["temp", "ph", "turbidez", "oxigeno", "conduct"]:
                     st.session_state.pop(f"{campo}_{dispositivo}", None)
+                # Refrescar la página
                 st.rerun()
             else:
                 st.error(f"❌ Error al registrar manualmente: {response.text}")
 
-    # Se muestra el historial solo del último dispositivo registrado
+    # Mostrar historial de registros manuales
     st.markdown("---")
     st.markdown("### 📄 Últimos registros manuales")
 
+    # Después de la línea separadora, mostrar el historial sólo del último dispositivo registrado manualmente
     ultimo = st.session_state.get("ultimo_dispositivo_registrado")
     if not ultimo:
         st.info("ℹ️ Aún no has registrado datos manuales en esta sesión.")
         return
 
     try:
+        # Conexión a la base de datos
         client = MongoClient(MONGO_URI)
         db = client["biorreactor_app"]
         collection = db[dominio_actual]
 
+        # Buscar registros manuales para ese último dispositivo, ordenados por fecha descendente
         registros_manuales = list(collection.find({
             "id_dispositivo": ultimo,
             "manual": True
         }).sort("tiempo", -1).limit(50))
 
+        # Crear dataframe y formatear la columna "tiempo"
         if registros_manuales:
             df_hist = pd.DataFrame(registros_manuales)
             df_hist["tiempo"] = pd.to_datetime(df_hist["tiempo"]).dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -469,6 +545,8 @@ def mostrar_registro_manual():
             columnas_mostrar = [col for col in columnas_mostrar if col in df_hist.columns]
 
             st.markdown(f"📋 Historial del dispositivo: `{ultimo}`")
+            
+            # Mostrar las columnas relevantes en una tabla
             st.dataframe(df_hist[columnas_mostrar], use_container_width=True)
         else:
             st.info(f"ℹ️ No hay registros manuales previos para `{ultimo}`.")
@@ -479,32 +557,35 @@ def mostrar_registro_manual():
 def mostrar_historial_manual():
     st.subheader("📈 Visualización por variable")
 
+    # Obtener dominio seleccionado
     dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
 
     try:
+        # Conexión a la base de datos con el dominio actual
         client = MongoClient(MONGO_URI)
         db = client["biorreactor_app"]
         collection = db[dominio_actual]
 
-        # Obtener registros manuales
+        # Cargar registros manuales, que tengan campo "manual": True (o sea, que no fueron ingresados automáticamente)
         registros_manuales = list(collection.find({"manual": True}).sort("tiempo", -1).limit(500))
 
         if not registros_manuales:
             st.info("ℹ️ No hay registros manuales disponibles.")
             return
 
+        # Convertir los registros a un dataframe, convertir el tiempo a fecha y ordenar por fecha descendente
         df_manual = pd.DataFrame(registros_manuales)
         df_manual["tiempo"] = pd.to_datetime(df_manual["tiempo"])
         df_manual = df_manual.sort_values("tiempo", ascending=False)
 
-        # Filtro por dispositivo
+        # Filtro por dispositivo, para elegir uno o varios dispositivos
         dispositivos = df_manual["id_dispositivo"].unique().tolist()
         seleccionados = st.multiselect("📟 Filtrar por dispositivo", ["Todos"] + dispositivos, default="Todos")
 
         if "Todos" not in seleccionados:
             df_manual = df_manual[df_manual["id_dispositivo"].isin(seleccionados)]
 
-        # Filtro por fecha
+        # Filtro por fecha, permite seleccionar un rango de fechas, para filtrar los registros dentro de ese rango
         fechas = df_manual["tiempo"]
         fecha_min, fecha_max = fechas.min().date(), fechas.max().date()
         rango = st.date_input("📆 Rango de fechas", [fecha_min, fecha_max])
@@ -513,10 +594,11 @@ def mostrar_historial_manual():
             f2 = pd.to_datetime(rango[1]) + pd.Timedelta(days=1)
             df_manual = df_manual[(df_manual["tiempo"] >= f1) & (df_manual["tiempo"] < f2)]
 
-        # Gráfico de variable seleccionada
+        # Gráfico de evolución por variable seleccionada
         variables = ["temperatura", "ph", "turbidez", "oxigeno", "conductividad"]
         variables_disponibles = [v for v in variables if v in df_manual.columns]
 
+        # Mostrar solamente las variables disponibles
         if variables_disponibles:
             var = st.selectbox("Selecciona variable a graficar", variables_disponibles)
             df_chart = df_manual[["tiempo", "id_dispositivo", var]].dropna()
@@ -525,7 +607,7 @@ def mostrar_historial_manual():
             if not df_chart.empty:
                 fig = go.Figure()
 
-                # Agrupar por dispositivo y agregar traza para cada uno
+                # Agrupar por dispositivo, donde cada dispositivo tiene su propia línea en el gráfico
                 for dispositivo_id, df_disp in df_chart.groupby("id_dispositivo"):
                     fig.add_trace(go.Scatter(
                         x=df_disp["tiempo"],
@@ -557,7 +639,7 @@ def mostrar_historial_manual():
         else:
             st.info("ℹ️ No hay variables numéricas disponibles para graficar.")
 
-        # Tabla colapsable
+        # Tabla colapsable, permite ver tabla completa de los registros debajo del gráfico
         with st.expander("📄 Ver tabla de registros manuales"):
             df_manual["tiempo"] = df_manual["tiempo"].dt.strftime("%Y-%m-%d %H:%M:%S")
             columnas = ["tiempo", "id_dispositivo", "temperatura", "ph", "turbidez", "oxigeno", "conductividad"]
@@ -565,6 +647,7 @@ def mostrar_historial_manual():
             st.dataframe(df_manual[columnas], use_container_width=True)
 
         # Botón para descarga en CSV
+        # Convierte el dataframe en CSV y permite al usuario descargar todos los registros manuales filtrados
         csv_manual = df_manual[columnas].to_csv(index=False).encode("utf-8")
         st.download_button(
             label="⬇️ Descargar CSV de registros manuales",
@@ -580,6 +663,7 @@ def mostrar_historial_manual():
 def mostrar_registro_manual_vs_sensor():
     st.subheader("📋 Comparación por Día: Registro Manual vs Sensor")
 
+    # Obtener dominio actual e IDs de dispositivos filtrados desde session_state
     dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
     ids = st.session_state.get(f"ids_filtrados_{dominio_actual}", [])
 
@@ -587,19 +671,22 @@ def mostrar_registro_manual_vs_sensor():
         st.warning("⚠️ No hay dispositivos seleccionados para comparar.")
         st.stop()
 
+    # Selección del dispositivo
     dispositivo = st.selectbox("📟 Selecciona un dispositivo:", ids)
 
     try:
+        # Conexión a la base de datos con el dominio actual
         client = MongoClient(MONGO_URI)
         db = client["biorreactor_app"]
         collection = db[dominio_actual]
 
-        # Cargar registros
+        # Buscar todos los registros del dispositivo seleccionado
         registros = list(collection.find({"id_dispositivo": dispositivo}))
         if not registros:
             st.info("ℹ️ No hay registros para este dispositivo.")
             return
         
+        # Convertir los datos a un dataframe, transformando la columna "tiempo" y extrayendo la fecha
         df = pd.DataFrame(registros)
         df["tiempo"] = pd.to_datetime(df["tiempo"])
         df["fecha"] = df["tiempo"].dt.date
@@ -615,16 +702,16 @@ def mostrar_registro_manual_vs_sensor():
             st.info("ℹ️ Se necesitan registros manuales y automáticos para comparar.")
             return
         
-        # Agrupar automáticos por día (mediana o promedio)
+        # Agrupar automáticos por día, calculando la mediana o promedio
         df_auto_grouped = df_auto.groupby("fecha")[vars_medibles].mean().round(2).reset_index() #.median() - Mediana
 
-        # Agrupar manuales por día (uno por día)
+        # Agrupar manuales por día, tomando el primer registro del día 
         df_manual_grouped = df_manual.groupby("fecha")[vars_medibles].first().round(2).reset_index()
 
-        # Combinar ambos por fecha
+        # Combinar ambas tablas por la columna "fecha"
         df_comp = pd.merge(df_manual_grouped, df_auto_grouped, on="fecha", suffixes=("_manual","_sensor"))
 
-        # Calcular diferencia por variable
+        # Calcular diferencia por variable medible, se calcula la diferencia diaria entre el registro manual y el automático
         for var in vars_medibles:
             col_manual = f"{var}_manual"
             col_sensor = f"{var}_sensor"
@@ -646,7 +733,7 @@ def mostrar_registro_manual_vs_sensor():
         df_mostrar = df_comp[columnas_mostrar].rename(columns=nombres_columnas)
         st.dataframe(df_mostrar, use_container_width=True)
 
-        # Gráfico por variable
+        # Gráfico por variable, selector para seleccionar una variable a graficar
         st.markdown("### 📈 Selector de variable para gráficos")
         var_sel = st.selectbox("Selecciona una variable", vars_medibles)
         if f"{var_sel}_manual" in df_comp.columns:
