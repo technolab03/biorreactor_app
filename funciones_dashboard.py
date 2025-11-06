@@ -123,7 +123,7 @@ def mostrar_metricas(df):
         col1.metric("🌡️ Temperatura", f"{df_disp['temperatura'].iloc[0]:.2f} °C")
         col2.metric("🌊 pH", f"{df_disp['ph'].iloc[0]:.2f}")
         col3.metric("🧪 Turbidez", f"{df_disp['turbidez'].iloc[0]:.2f} %")
-        col4.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} %")
+        col4.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} mg/L")
         col5.metric("⚡ Luz", f"{df_disp['luz'].iloc[0]:.2f} lux")
 
         # Agregar línea divisora entre dispositivos
@@ -332,7 +332,7 @@ def mostrar_graficos(df):
     variables = {
         "temperatura": ("🌡️ Temperatura", "°C", "red"),
         "ph": ("🌊 pH", "pH", "purple"),
-        "oxigeno": ("🫁 Oxígeno", "%", "green"),
+        "oxigeno": ("🫁 Oxígeno", "mg/L", "green"),
         "turbidez": ("🧪 Turbidez", "%", "blue"),
         "luz": ("⚡ Luz", "lux", "orange"),
     }
@@ -462,9 +462,9 @@ def mostrar_registro_manual():
             with col3:
                 turbidez = st.text_input("🧪 Turbidez (%)", key=f"turbidez_{dispositivo}", help="Rango: 0.00 - 100.00 (%)", placeholder="Ingrese el valor de turbidez")
             with col4:
-                oxigeno = st.text_input("🫁 Oxígeno (%)", key=f"oxigeno_{dispositivo}", help="Rango: 0.00 - 100.00 (%)", placeholder="Ingrese el valor de oxigeno")
+                oxigeno = st.text_input("🫁 Oxígeno (mg/L)", key=f"oxigeno_{dispositivo}", help="Rango: 0.00 - 100.00 (mg/L)", placeholder="Ingrese el valor de oxigeno")
             with col5:
-                luz = st.text_input("⚡ Luz (lux)", key=f"luz_{dispositivo}", help="Rango: 0.00 - 3000.00 (ppm)", placeholder="Ingrese el valor de luz")
+                luz = st.text_input("⚡ Luz (lux)", key=f"luz_{dispositivo}", help="Rango: 0.00 - 3000.00 (lux)", placeholder="Ingrese el valor de luz")
             with col6:
                 enviado = st.form_submit_button("📩 Enviar registro")
         
