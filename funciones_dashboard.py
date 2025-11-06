@@ -84,7 +84,7 @@ def mostrar_metricas(df):
         return
 
     # Cargar los dispositivos filtrados, usando el filtro global para saber qué dispositivos mostrar
-    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
+    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_terreno")
     clave_estado_ids = f"ids_filtrados_{dominio_actual}"
 
     # Obtener lista original ordenada alfabéticamente
@@ -124,7 +124,7 @@ def mostrar_metricas(df):
         col2.metric("🌊 pH", f"{df_disp['ph'].iloc[0]:.2f}")
         col3.metric("🧪 Turbidez", f"{df_disp['turbidez'].iloc[0]:.2f} %")
         col4.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} %")
-        col5.metric("⚡ Conductividad", f"{df_disp['conductividad'].iloc[0]:.2f} ppm")
+        col5.metric("⚡ Luz", f"{df_disp['luz'].iloc[0]:.2f} lux")
 
         # Agregar línea divisora entre dispositivos
         st.markdown("---")
@@ -138,7 +138,7 @@ def mostrar_reporte(df):
         dispositivos = sorted(df["id_dispositivo"].dropna().unique())
 
         # Obtener dominio actual desde session_state
-        dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
+        dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_terreno")
         clave_estado_ids = f"ids_filtrados_{dominio_actual}"
 
         # Recuperar la lista de dispositivos seleccionados por el usuario desde session_state
@@ -280,7 +280,7 @@ def mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=None)
                 if st.button("🍽️ Alimentar", key=f"alimentar_{dispositivo}"):
                     # Enviar un POST a la API para registrar el evento de alimentación
                     response = requests.post(
-                        "https://biorreactor-app-api.onrender.com/api/registro_comida",
+                        "https://biorreactor-app.onrender.com/api/registro_comida",
                         json={"evento": "comida", "id_dispositivo": dispositivo}
                     )
                     # Si responde con éxito (201), muestra un mensaje y refresca la página
@@ -334,7 +334,7 @@ def mostrar_graficos(df):
         "ph": ("🌊 pH", "pH", "purple"),
         "oxigeno": ("🫁 Oxígeno", "%", "green"),
         "turbidez": ("🧪 Turbidez", "%", "blue"),
-        "conductividad": ("⚡ Conductividad", "ppm", "orange"),
+        "luz": ("⚡ Luz", "lux", "orange"),
     }
 
     # Crear pestañas para cada variable y pestaña adicional para comparar múltiples dispositivos
@@ -437,7 +437,7 @@ def mostrar_registro_manual():
     st.subheader("✍️ Registro Manual de Variables")
 
     # Recuperar el dominio y la lista de dispositivos seleccionados por el usuario
-    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
+    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_terreno")
     ids = st.session_state.get(f"ids_filtrados_{dominio_actual}", [])
 
     if not ids:
@@ -464,7 +464,7 @@ def mostrar_registro_manual():
             with col4:
                 oxigeno = st.text_input("🫁 Oxígeno (%)", key=f"oxigeno_{dispositivo}", help="Rango: 0.00 - 100.00 (%)", placeholder="Ingrese el valor de oxigeno")
             with col5:
-                conductividad = st.text_input("⚡ Conductividad (ppm)", key=f"conduct_{dispositivo}", help="Rango: 0.00 - 3000.00 (ppm)", placeholder="Ingrese el valor de conductividad")
+                luz = st.text_input("⚡ Luz (lux)", key=f"luz_{dispositivo}", help="Rango: 0.00 - 3000.00 (ppm)", placeholder="Ingrese el valor de luz")
             with col6:
                 enviado = st.form_submit_button("📩 Enviar registro")
         
@@ -475,7 +475,7 @@ def mostrar_registro_manual():
                 "ph": ph,
                 "turbidez": turbidez,
                 "oxigeno": oxigeno,
-                "conductividad": conductividad
+                "luz": luz
             }
 
             # Validar que al menos un campo esté lleno, o da error
@@ -497,7 +497,7 @@ def mostrar_registro_manual():
                     data[campo] = parsear_decimal(valor, campo.capitalize())
 
             # Hacer petición POST a la API
-            response = requests.post("https://biorreactor-app-api.onrender.com/api/registro_manual", json=data)
+            response = requests.post("https://biorreactor-app.onrender.com/api/registro_manual", json=data)
 
             # Si el servidor responde con éxito (201)
             if response.status_code == 201:
@@ -507,7 +507,7 @@ def mostrar_registro_manual():
                 # Guardar dispositivo registrado en la sesión
                 st.session_state["ultimo_dispositivo_registrado"] = dispositivo
                 # Limpiar campos del formulario
-                for campo in ["temp", "ph", "turbidez", "oxigeno", "conduct"]:
+                for campo in ["temp", "ph", "turbidez", "oxigeno", "luz"]:
                     st.session_state.pop(f"{campo}_{dispositivo}", None)
                 # Refrescar la página
                 st.rerun()
@@ -541,7 +541,7 @@ def mostrar_registro_manual():
             df_hist = pd.DataFrame(registros_manuales)
             df_hist["tiempo"] = pd.to_datetime(df_hist["tiempo"]).dt.strftime("%Y-%m-%d %H:%M:%S")
 
-            columnas_mostrar = ["tiempo", "temperatura", "ph", "turbidez", "oxigeno", "conductividad"]
+            columnas_mostrar = ["tiempo", "temperatura", "ph", "turbidez", "oxigeno", "luz"]
             columnas_mostrar = [col for col in columnas_mostrar if col in df_hist.columns]
 
             st.markdown(f"📋 Historial del dispositivo: `{ultimo}`")
@@ -558,7 +558,7 @@ def mostrar_historial_manual():
     st.subheader("📈 Visualización por variable")
 
     # Obtener dominio seleccionado
-    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
+    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_terreno")
 
     try:
         # Conexión a la base de datos con el dominio actual
@@ -595,7 +595,7 @@ def mostrar_historial_manual():
             df_manual = df_manual[(df_manual["tiempo"] >= f1) & (df_manual["tiempo"] < f2)]
 
         # Gráfico de evolución por variable seleccionada
-        variables = ["temperatura", "ph", "turbidez", "oxigeno", "conductividad"]
+        variables = ["temperatura", "ph", "turbidez", "oxigeno", "luz"]
         variables_disponibles = [v for v in variables if v in df_manual.columns]
 
         # Mostrar solamente las variables disponibles
@@ -642,7 +642,7 @@ def mostrar_historial_manual():
         # Tabla colapsable, permite ver tabla completa de los registros debajo del gráfico
         with st.expander("📄 Ver tabla de registros manuales"):
             df_manual["tiempo"] = df_manual["tiempo"].dt.strftime("%Y-%m-%d %H:%M:%S")
-            columnas = ["tiempo", "id_dispositivo", "temperatura", "ph", "turbidez", "oxigeno", "conductividad"]
+            columnas = ["tiempo", "id_dispositivo", "temperatura", "ph", "turbidez", "oxigeno", "luz"]
             columnas = [col for col in columnas if col in df_manual.columns]
             st.dataframe(df_manual[columnas], use_container_width=True)
 
@@ -664,7 +664,7 @@ def mostrar_registro_manual_vs_sensor():
     st.subheader("📋 Comparación por Día: Registro Manual vs Sensor")
 
     # Obtener dominio actual e IDs de dispositivos filtrados desde session_state
-    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")
+    dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_terreno")
     ids = st.session_state.get(f"ids_filtrados_{dominio_actual}", [])
 
     if not ids:
@@ -692,7 +692,7 @@ def mostrar_registro_manual_vs_sensor():
         df["fecha"] = df["tiempo"].dt.date
 
         # Variables a comparar
-        vars_medibles = ["temperatura", "ph", "turbidez", "oxigeno", "conductividad"]
+        vars_medibles = ["temperatura", "ph", "turbidez", "oxigeno", "luz"]
 
         # Separar registros manuales y automáticos
         df_manual = df[df["manual"] == True].copy()

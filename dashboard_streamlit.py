@@ -28,7 +28,7 @@ def obtener_hora_chile(dt_utc=None):
     return dt_utc.replace(tzinfo=pytz.utc).astimezone(chile_tz)
 
 @st.cache_data(ttl=600)
-def cargar_datos_cacheados(dominio='dominio_ucn', limit=5000):
+def cargar_datos_cacheados(dominio='dominio_terreno', limit=5000):
     return obtener_datos(dominio, limit)
 
 # --- CONFIGURACIÓN GENERAL ---
@@ -70,8 +70,8 @@ if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 
                 # Extraer desde la base de datos las colecciones disponibles que comienzan con "dominio_"
                 dominios_disponibles = sorted([col for col in db.list_collection_names() if col.startswith("dominio_")])
                 
-                # Elegir por defecto "dominio_ucn", si existe
-                indice_por_defecto = dominios_disponibles.index("dominio_ucn") if "dominio_ucn" in dominios_disponibles else 0
+                # Elegir por defecto "dominio_terreno", si existe
+                indice_por_defecto = dominios_disponibles.index("dominio_terreno") if "dominio_terreno" in dominios_disponibles else 0
                 
                 # Recuperar dominio guardado en session_state o mostrar por defecto
                 dominio_inicial = st.session_state.get("dominio_seleccionado", dominios_disponibles[indice_por_defecto])
@@ -159,7 +159,7 @@ if st.sidebar.button("🔄 Actualizar datos"):
     st.rerun()
 
 # Botón para resetear los filtros
-dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_ucn")  # Asegúrate de definirlo antes
+dominio_actual = st.session_state.get("dominio_seleccionado", "dominio_terreno")  # Asegúrate de definirlo antes
 
 if st.sidebar.button("🧹 Resetear filtros"):
     claves_a_borrar = [
@@ -185,7 +185,7 @@ elif seccion == "📋 Reporte":
     mostrar_reporte(df)
 
 elif seccion == "🍽️ Alimentación":
-    dominio_seleccionado = st.session_state.get("dominio_seleccionado", "dominio_ucn")
+    dominio_seleccionado = st.session_state.get("dominio_seleccionado", "dominio_terreno")
     registros = obtener_registro_comida(limit=5000)
     ids_filtrados = st.session_state.get(f"ids_filtrados_{dominio_seleccionado}", [])
     mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=ids_filtrados)

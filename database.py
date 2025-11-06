@@ -11,13 +11,13 @@ def convertir_a_chile(fecha_utc):
         fecha_utc = fecha_utc.replace(tzinfo=pytz.utc)
     return fecha_utc.astimezone(chile_tz)
 
-def obtener_datos(dominio='dominio_ucn', limit=5000):
+def obtener_datos(dominio='dominio_terreno', limit=5000):
     # Usar variable de entorno "MONGO_URI" para conectarse a MongoDB, si no se encuentra la variable, lanza un error
     mongo_uri = os.environ.get("MONGO_URI")
     if not mongo_uri:
         raise RuntimeError("❌ No se encontró la variable de entorno MONGO_URI")
     
-    # Conectarse a la base de datos, y seleccionar la colección al dominio pasado por parámetro o por defecto "dominio_ucn"
+    # Conectarse a la base de datos, y seleccionar la colección al dominio pasado por parámetro o por defecto "dominio_terreno"
     client = MongoClient(mongo_uri)
     db = client["biorreactor_app"]
     collection = db[dominio]
@@ -37,7 +37,7 @@ def obtener_datos(dominio='dominio_ucn', limit=5000):
             'ph': doc.get('ph'),
             'oxigeno': doc.get('oxigeno'),
             'turbidez': doc.get('turbidez'),
-            'conductividad': doc.get('conductividad')
+            'luz': doc.get('luz')
         })
 
     # Cierra la conexión a la base de datos, e invierte el orden de los datos para que queden del más antiguo al más reciente y los retorna

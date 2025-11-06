@@ -75,7 +75,7 @@ def obtener_datos():
             'ph': doc.get('ph'),
             'oxigeno': doc.get('oxigeno'),
             'turbidez': doc.get('turbidez'),
-            'conductividad': doc.get('conductividad')
+            'luz': doc.get('luz')
         })
 
     # Invertir la lista para que los datos aparezcan en orden cronológico ascendente (más antiguos primero) y los devuelve como JSON
@@ -148,7 +148,7 @@ def registrar_manual():
     }
 
     # Agregar los campos en el orden deseado si están presentes y tienen un valor válido (no vacío ni nulo)
-    for campo in ["turbidez", "ph", "temperatura", "oxigeno", "conductividad"]:
+    for campo in ["turbidez", "ph", "temperatura", "oxigeno", "luz"]:
         if campo in data and data[campo] not in ("", None):
             doc[campo] = data[campo]
 
