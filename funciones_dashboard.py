@@ -8,6 +8,7 @@ import pytz
 from PIL import Image
 import base64
 from io import BytesIO
+import numpy as np
 
 # --- CREDENCIALES PARA BASE DE DATOS ---
 MONGO_URI = st.secrets["MONGO_URI"]
@@ -54,10 +55,13 @@ def mostrar_filtro_global(df, dominio_actual):
                 st.session_state[clave_ids] = []
             st.rerun()
 
+        # Asegurar que los valores por defecto existen en las opciones actuales
+        valores_validos = [d for d in st.session_state[clave_ids] if d in dispositivos]
+
         seleccion = st.multiselect(
             "Selecciona dispositivos:",
             dispositivos,
-            default=st.session_state[clave_ids],
+            default=valores_validos,
             key=f"multiselect_global_{dominio_actual}"
         )
 
@@ -337,9 +341,10 @@ def mostrar_graficos(df):
         "luz": ("⚡ Luz", "lux", "orange"),
     }
 
-    # Crear pestañas para cada variable y pestaña adicional para comparar múltiples dispositivos
+    # Crear pestañas: una por variable + comparación múltiple + comparación de variables
     tab_labels = list([nombre for (nombre, _, _) in variables.values()])
     tab_labels.append("📊 Comparación múltiple")
+    tab_labels.append("🧩 Comparar variables")
     tabs = st.tabs(tab_labels)
 
     # Graficar individualmente la variable específica del dispositivo seleccionado dentro de cada pestaña
@@ -362,7 +367,7 @@ def mostrar_graficos(df):
                 st.warning(f"⚠️ No hay datos para '{var}' en {id_seleccionado}.")
 
     # Seleccionar varios dispositivos y una variable a comparar
-    with tabs[-1]:
+    with tabs[-2]:
         st.markdown("### 🔍 Comparación múltiple de dispositivos")
         seleccionados = st.multiselect("Selecciona dispositivos:", dispositivos, default=dispositivos[:2])
         var_multi = st.selectbox("Variable a visualizar:", list(variables.keys()), format_func=lambda x: variables[x][0])
@@ -381,6 +386,81 @@ def mostrar_graficos(df):
             fig.update_xaxes(tickformat="%d-%m %H:%M", tickangle=45)
             fig.update_yaxes(showgrid=True)
             st.plotly_chart(fig, use_container_width=True)
+
+    # Comparar múltiples variables de un mismo dispositivo (Z-Score estándar)
+    with tabs[-1]:
+        st.markdown("### 🧩 Comparar múltiples variables en un mismo dispositivo")
+
+        vars_seleccionadas = st.multiselect(
+            "Variables a graficar:",
+            list(variables.keys()),
+            default=["ph", "oxigeno"],
+            format_func=lambda x: variables[x][0]
+        )
+
+        # Método Z-score
+        st.markdown("**Método de normalización:** Z-score (estándar)")
+        ventana = st.slider("📏 Suavizado (media móvil, puntos)", 1, 21, 1, 2)
+
+        if not vars_seleccionadas:
+            st.warning("Selecciona al menos una variable para graficar.")
+        else:
+            df_plot = df_id[["tiempo"]].copy()
+            raw_series = {}
+
+            # Extraer y suavizar series
+            for var in vars_seleccionadas:
+                if var in df_id.columns:
+                    serie = df_id[var].astype(float).dropna()
+                    if ventana > 1:
+                        serie = serie.rolling(ventana, center=True, min_periods=1).mean()
+                    raw_series[var] = serie
+
+            if not raw_series:
+                st.warning("No hay datos válidos para las variables seleccionadas.")
+            else:
+                # Crear DataFrame con todas las variables alineadas en tiempo
+                df_all = pd.DataFrame({"tiempo": df_id["tiempo"]}).set_index("tiempo")
+                for k, s in raw_series.items():
+                    df_all[k] = s.values
+
+                # Normalización Z-score
+                normed = pd.DataFrame(index=df_all.index)
+                for k in vars_seleccionadas:
+                    s = df_all[k]
+                    mu, sd = np.nanmean(s.values), np.nanstd(s.values)
+                    sd = sd if sd not in (0, None) and sd != 0 else 1.0
+                    z = (s - mu) / sd
+                    # Escalar a rango 0–1 para visualización comparativa
+                    normed[k] = (z - (-3)) / (3 - (-3))  # mapea [-3, 3] → [0, 1]
+
+                # Graficar 
+                fig = go.Figure()
+                for var in vars_seleccionadas:
+                    if var in normed.columns:
+                        nombre, unidad, color = variables[var]
+                        serie_plot = normed[var]
+                        if serie_plot is None or serie_plot.dropna().empty:
+                            st.warning(f"⚠ '{nombre}' no tiene datos suficientes tras normalización.")
+                            continue
+                        fig.add_trace(go.Scatter(
+                            x=serie_plot.index, y=serie_plot,
+                            mode="lines+markers",
+                            name=f"{nombre} (Z-score norm.)",
+                            line=dict(width=2, color=color) if color else dict(width=2),
+                            hovertemplate="%{x|%d-%m %H:%M}<br>%{y:.3f}<extra></extra>"
+                        ))
+
+                fig.update_layout(
+                    title=f"Comparación de variables normalizadas (Z-score) en {id_seleccionado}",
+                    xaxis_title="Tiempo",
+                    yaxis_title="Escala normalizada (0–1)",
+                    height=450,
+                    legend_title="Variable"
+                )
+                fig.update_xaxes(tickformat="%d-%m %H:%M", tickangle=45)
+                fig.update_yaxes(range=[0, 1], showgrid=True, zeroline=True)
+                st.plotly_chart(fig, use_container_width=True)
 
 # --- IMÁGENES ---
 def mostrar_imagenes(db):
