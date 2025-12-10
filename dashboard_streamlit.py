@@ -14,7 +14,8 @@ from funciones_dashboard import (
     mostrar_registro_manual,
     mostrar_historial_manual,
     mostrar_registro_manual_vs_sensor,
-    mostrar_filtro_global
+    mostrar_filtro_global,
+    mostrar_modelo
 )
 
 # --- CREDENCIALES PARA BASE DE DATOS ---
@@ -48,12 +49,13 @@ st.sidebar.markdown("### 📁 **Navegación**")
 seccion = st.sidebar.radio("Selecciona una sección:", [
     "📊 Métricas", 
     "📋 Reporte", 
-    "🍽️ Alimentación", 
+    #"🍽️ Alimentación", 
     "📈 Gráficos", 
-    "✍️ Registro Manual",
-    "📄 Historial Manual",
-    "🆚 Comparación de Registros",
-    "🖼️ Imágenes"
+    #"✍️ Registro Manual",
+    #"📄 Historial Manual",
+    #"🆚 Comparación de Registros",
+    #"🖼️ Imágenes",
+    "🤖 Modelo"
 ])
 
 # --- CONEXIÓN A LA BASE DE DATOS --- 
@@ -61,7 +63,7 @@ client = MongoClient(MONGO_URI)
 db = client["biorreactor_app"]
 
 # --- SECCIÓN: FILTROS DE DOMINIO Y FECHAS ---
-if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 Gráficos", "✍️ Registro Manual", "📄 Historial Manual", "🆚 Comparación de Registros", "🖼️ Imágenes"]:
+if seccion in ["📊 Métricas", "📋 Reporte", "🍽️ Alimentación", "📈 Gráficos", "✍️ Registro Manual", "📄 Historial Manual", "🆚 Comparación de Registros", "🖼️ Imágenes", "🤖 Modelo"]:
     with st.expander("🌐📅 Filtros de dominio y fechas", expanded=False):
         with st.form("form_filtros"):
             col1, col2 = st.columns(2)
@@ -205,6 +207,9 @@ elif seccion == "📄 Historial Manual":
 elif seccion == "🆚 Comparación de Registros":
     mostrar_registro_manual_vs_sensor()
 
+elif seccion == "🤖 Modelo":
+    mostrar_modelo()
+
 # --- BOTÓN GRAFANA ---
-st.sidebar.markdown("---")
-st.sidebar.link_button("🔗 Ir al Dashboard de Grafana", "https://jeanmolina.grafana.net/public-dashboards/dd177b1f03f94db6ac6242f5586c796d")
+#st.sidebar.markdown("---")
+#st.sidebar.link_button("🔗 Ir al Dashboard de Grafana", "https://jeanmolina.grafana.net/public-dashboards/dd177b1f03f94db6ac6242f5586c796d")

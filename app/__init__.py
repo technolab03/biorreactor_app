@@ -19,4 +19,11 @@ def create_app():
 
     app.mongo = mongo
 
+    # --- INICIAR SERVICIO DE CLASIFICACIONES ---
+    try:
+        from . import servicio_clasificaciones
+        servicio_clasificaciones.iniciar_hilo(interval_minutes=60)  # se ejecuta en hilo aparte
+    except Exception as e:
+        print(f"⚠️ No se pudo iniciar el servicio de clasificaciones: {e}")
+
     return app

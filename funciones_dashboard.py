@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import plotly.graph_objects as go
 import requests
@@ -873,3 +874,80 @@ def mostrar_registro_manual_vs_sensor():
 
     except Exception as e:
         st.error(f"❌ Error al obtener los registros: {e}")
+
+# --- MODELO ---
+def mostrar_modelo():
+    st.subheader("🤖 Predicción de fase del cultivo (Modelo GRU)")
+
+    # Consulta a colección clasificaciones
+    client = MongoClient(MONGO_URI)
+    db = client["biorreactor_app"]
+    df_clasificaciones = pd.DataFrame(list(db["clasificaciones"].find()))
+
+    df = df_clasificaciones.copy()
+
+    # Asegurarse de que existan las columnas
+    for col in ["fase", "proba", "timestamp"]:
+        if col not in df.columns:
+            df[col] = df.apply(lambda row: row.get(col, None), axis=1)
+
+    # Selección de dispositivo
+    dispositivos = sorted(df["id_dispositivo"].dropna().unique())
+    if not dispositivos:
+        st.warning("No hay dispositivos disponibles.")
+        return
+
+    dispositivo = st.selectbox("📟 Selecciona un dispositivo:", dispositivos)
+    df_disp = df[df["id_dispositivo"] == dispositivo].copy()
+
+    # Convertir timestamp a datetime
+    df_disp["timestamp"] = df_disp["timestamp"].apply(
+        lambda x: pd.to_datetime(x.get("$date")) if isinstance(x, dict) else pd.to_datetime(x, errors="coerce")
+    )
+    df_disp = df_disp.dropna(subset=["timestamp"])  # eliminar filas sin timestamp
+
+    # Convertir a hora chilena y renombrar columna
+    df_disp["tiempo"] = df_disp["timestamp"].dt.tz_localize("UTC").dt.tz_convert("America/Santiago")
+    df_disp = df_disp.sort_values("tiempo")
+
+    # Mostrar últimas clasificaciones
+    st.markdown("### 📊 Últimas clasificaciones guardadas")
+    st.dataframe(df_disp[["tiempo", "fase", "proba"]].tail(10))
+
+    # Mostrar última clasificación
+    if not df_disp.empty:
+        ultima = df_disp.iloc[-1]
+        fase = ultima.get("fase", "Desconocida")
+        proba = ultima.get("proba", None)
+
+        if proba and isinstance(proba, (list, tuple)) and len(proba) >= 3:
+            # Reordenar probabilidades: 0=Crecimiento, 2=Estacionaria, 1=Declive
+            proba_ordenada = [proba[0], proba[2], proba[1]]
+        else:
+            proba_ordenada = [0.0, 0.0, 0.0]
+
+        clases = ["Crecimiento", "Estacionaria", "Declive"]
+
+        st.markdown("### 🧬 Última fase estimada")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.metric("Fase actual", fase.capitalize())
+        with col2:
+            st.write("📊 Probabilidades por fase:")
+            for c, p in zip(clases, proba_ordenada):
+                st.write(f"- **{c}**: {p:.5f}")
+
+        # Gráfico
+        fig = go.Figure(data=[go.Bar(x=clases, y=proba_ordenada)])
+        fig.update_layout(
+            title=f"Distribución de probabilidades — Última clasificación",
+            xaxis_title="Fase",
+            yaxis_title="Probabilidad",
+            height=400
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Refrescar automáticamente cada 60 segundos
+    st_autorefresh(interval=60000, key="refresh_modelo")
+
+
