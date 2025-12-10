@@ -14,6 +14,15 @@ import numpy as np
 # --- CREDENCIALES PARA BASE DE DATOS ---
 MONGO_URI = st.secrets["MONGO_URI"]
 
+# --- UMBRALES DE VARIABLES AMBIENTALES ---
+UMBRAL = {
+    "temperatura": (18, 30),
+    "ph": (6.0, 9.0),
+    "turbidez": (0, 100),
+    "oxigeno": (3, 12),
+    "luz": (50, 70000)
+}
+
 # --- UTILIDADES ---
 def parsear_decimal(valor_str, nombre_campo):
     if not valor_str:
@@ -24,6 +33,16 @@ def parsear_decimal(valor_str, nombre_campo):
     except ValueError:
         st.error(f"❌ El valor ingresado en '{nombre_campo}' no es válido.")
         st.stop()
+
+def evaluar_alertas_dispositivo(row):
+    alertas = []
+    for variable, (min_val, max_val) in UMBRAL.items():
+        valor = row[variable]
+        if valor < min_val or valor > max_val:
+            alertas.append(
+                f"⚠️ {variable.upper()} ({valor:.2f}) fuera del rango permitido [{min_val} – {max_val}]"
+            )
+    return alertas
 
 # --- FILTRO GLOBAL DE DISPOSITIVOS ---
 def mostrar_filtro_global(df, dominio_actual):
@@ -130,6 +149,18 @@ def mostrar_metricas(df):
         col3.metric("🧪 Turbidez", f"{df_disp['turbidez'].iloc[0]:.2f} %")
         col4.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} mg/L")
         col5.metric("⚡ Luz", f"{df_disp['luz'].iloc[0]:.2f} lux")
+
+        # Última fila
+        row = df_disp.iloc[0]
+
+        # --- ALERTAS VISUALES ---
+        alertas = evaluar_alertas_dispositivo(row)
+
+        if alertas:
+            with st.container():
+                st.error("🚨 **ALERTAS DETECTADAS:**")
+                for a in alertas:
+                    st.write(a)
 
         # Agregar línea divisora entre dispositivos
         st.markdown("---")
