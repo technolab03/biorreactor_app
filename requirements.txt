@@ -30,7 +30,6 @@ protobuf==4.25.3
 pycparser==2.21
 pydeck==0.9.1
 pymongo==4.8.0
-pyserial==3.5
 pysocks==1.7.1
 python-dateutil==2.9.0.post0
 pytz==2024.1
