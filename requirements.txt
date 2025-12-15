@@ -38,8 +38,6 @@ pyyaml==6.0.2
 requests==2.32.3
 setuptools==78.1.1
 six==1.17.0
-scikit-learn==1.6.1
-schedule==1.2.0
 streamlit==1.45.0
 streamlit-autorefresh
 tenacity==9.0.0
