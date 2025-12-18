@@ -4,18 +4,18 @@ import pandas as pd
 import pytz
 from pymongo import MongoClient
 from datetime import datetime
-from database import obtener_datos, obtener_registro_comida
+from database import obtener_datos #, obtener_registro_comida
 from funciones_dashboard import (
     mostrar_metricas,
     mostrar_reporte,
-    mostrar_registro_comida,
     mostrar_graficos,
-    mostrar_imagenes,
-    mostrar_registro_manual,
-    mostrar_historial_manual,
-    mostrar_registro_manual_vs_sensor,
-    mostrar_filtro_global,
-    mostrar_modelo
+    mostrar_modelo,
+    mostrar_filtro_global
+    # mostrar_registro_comida,
+    # mostrar_imagenes,
+    # mostrar_registro_manual,
+    # mostrar_historial_manual,
+    # mostrar_registro_manual_vs_sensor
 )
 
 # --- CREDENCIALES PARA BASE DE DATOS ---
@@ -49,13 +49,13 @@ st.sidebar.markdown("### 📁 **Navegación**")
 seccion = st.sidebar.radio("Selecciona una sección:", [
     "📊 Métricas", 
     "📋 Reporte", 
-    #"🍽️ Alimentación", 
     "📈 Gráficos", 
+    "🤖 Modelo" 
+    #"🍽️ Alimentación", 
     #"✍️ Registro Manual",
     #"📄 Historial Manual",
     #"🆚 Comparación de Registros",
-    #"🖼️ Imágenes",
-    "🤖 Modelo"
+    #"🖼️ Imágenes"
 ])
 
 # --- CONEXIÓN A LA BASE DE DATOS --- 
@@ -186,30 +186,30 @@ if seccion == "📊 Métricas":
 elif seccion == "📋 Reporte":
     mostrar_reporte(df)
 
-elif seccion == "🍽️ Alimentación":
-    dominio_seleccionado = st.session_state.get("dominio_seleccionado", "dominio_terreno")
-    registros = obtener_registro_comida(limit=5000)
-    ids_filtrados = st.session_state.get(f"ids_filtrados_{dominio_seleccionado}", [])
-    mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=ids_filtrados)
-
 elif seccion == "📈 Gráficos":
     mostrar_graficos(df)
-
-elif seccion == "🖼️ Imágenes":
-    mostrar_imagenes(db)
-
-elif seccion == "✍️ Registro Manual":
-    mostrar_registro_manual()
-
-elif seccion == "📄 Historial Manual":
-    mostrar_historial_manual()
-
-elif seccion == "🆚 Comparación de Registros":
-    mostrar_registro_manual_vs_sensor()
 
 elif seccion == "🤖 Modelo":
     mostrar_modelo()
 
-# --- BOTÓN GRAFANA ---
-#st.sidebar.markdown("---")
-#st.sidebar.link_button("🔗 Ir al Dashboard de Grafana", "https://jeanmolina.grafana.net/public-dashboards/dd177b1f03f94db6ac6242f5586c796d")
+# elif seccion == "🍽️ Alimentación":
+#     dominio_seleccionado = st.session_state.get("dominio_seleccionado", "dominio_terreno")
+#     registros = obtener_registro_comida(limit=5000)
+#     ids_filtrados = st.session_state.get(f"ids_filtrados_{dominio_seleccionado}", [])
+#     mostrar_registro_comida(registros, dominio_seleccionado, ids_filtrados=ids_filtrados)
+
+# elif seccion == "🖼️ Imágenes":
+#     mostrar_imagenes(db)
+
+# elif seccion == "✍️ Registro Manual":
+#     mostrar_registro_manual()
+
+# elif seccion == "📄 Historial Manual":
+#     mostrar_historial_manual()
+
+# elif seccion == "🆚 Comparación de Registros":
+#     mostrar_registro_manual_vs_sensor()
+
+# #--- BOTÓN GRAFANA ---
+# st.sidebar.markdown("---")
+# st.sidebar.link_button("🔗 Ir al Dashboard de Grafana", "https://jeanmolina.grafana.net/public-dashboards/dd177b1f03f94db6ac6242f5586c796d")
