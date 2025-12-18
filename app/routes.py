@@ -74,7 +74,6 @@ def obtener_datos():
             'temperatura': doc.get('temperatura'),
             'ph': doc.get('ph'),
             'oxigeno': doc.get('oxigeno'),
-            'turbidez': doc.get('turbidez'),
             'luz': doc.get('luz')
         })
 
@@ -148,7 +147,7 @@ def registrar_manual():
     }
 
     # Agregar los campos en el orden deseado si están presentes y tienen un valor válido (no vacío ni nulo)
-    for campo in ["turbidez", "ph", "temperatura", "oxigeno", "luz"]:
+    for campo in ["ph", "temperatura", "oxigeno", "luz"]:
         if campo in data and data[campo] not in ("", None):
             doc[campo] = data[campo]
 

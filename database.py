@@ -36,7 +36,6 @@ def obtener_datos(dominio='dominio_terreno', limit=5000):
             'temperatura': doc.get('temperatura'),
             'ph': doc.get('ph'),
             'oxigeno': doc.get('oxigeno'),
-            'turbidez': doc.get('turbidez'),
             'luz': doc.get('luz')
         })
 

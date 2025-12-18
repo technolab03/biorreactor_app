@@ -18,7 +18,6 @@ MONGO_URI = st.secrets["MONGO_URI"]
 UMBRAL = {
     "temperatura": (18, 27),
     "ph": (6.0, 9.5),
-    "turbidez": (0, 100),
     "oxigeno": (3, 25),
     "luz": (0, 5000)
 }
@@ -143,12 +142,11 @@ def mostrar_metricas(df):
         st.markdown(f"**🔎 Dispositivo:** `{disp}`  \n🕒 Última medición: `{tiempo_str}`")
 
         # Mostrar últimas métricas de cada variable en columnas 
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4 = st.columns(4)
         col1.metric("🌡️ Temperatura", f"{df_disp['temperatura'].iloc[0]:.2f} °C")
         col2.metric("🌊 pH", f"{df_disp['ph'].iloc[0]:.2f}")
-        col3.metric("🧪 Turbidez", f"{df_disp['turbidez'].iloc[0]:.2f} %")
-        col4.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} mg/L")
-        col5.metric("⚡ Luz", f"{df_disp['luz'].iloc[0]:.2f} lux")
+        col3.metric("🫁 Oxígeno", f"{df_disp['oxigeno'].iloc[0]:.2f} mg/L")
+        col4.metric("⚡ Luz", f"{df_disp['luz'].iloc[0]:.2f} lux")
 
         # Última fila
         row = df_disp.iloc[0]
@@ -369,7 +367,6 @@ def mostrar_graficos(df):
         "temperatura": ("🌡️ Temperatura", "°C", "red"),
         "ph": ("🌊 pH", "pH", "purple"),
         "oxigeno": ("🫁 Oxígeno", "mg/L", "green"),
-        "turbidez": ("🧪 Turbidez", "%", "blue"),
         "luz": ("⚡ Luz", "lux", "orange"),
     }
 
@@ -566,18 +563,16 @@ def mostrar_registro_manual():
         st.markdown(f"📟 Dispositivo: `{dispositivo}`")
         with st.form(f"form_manual_{dispositivo}"):
             # Mostrar 6 columnas con campos de entrada dentro de cada formulario
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
+            col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
                 temperatura = st.text_input("🌡️ Temperatura (°C)", key=f"temp_{dispositivo}", help="Rango: 0.00 - 30.00 (°C)", placeholder="Ingrese el valor de temperatura")
             with col2:
                 ph = st.text_input("🌊 pH", key=f"ph_{dispositivo}", help="Rango: 0.00 - 14.00 (pH)", placeholder="Ingrese el valor de ph")
             with col3:
-                turbidez = st.text_input("🧪 Turbidez (%)", key=f"turbidez_{dispositivo}", help="Rango: 0.00 - 100.00 (%)", placeholder="Ingrese el valor de turbidez")
-            with col4:
                 oxigeno = st.text_input("🫁 Oxígeno (mg/L)", key=f"oxigeno_{dispositivo}", help="Rango: 0.00 - 100.00 (mg/L)", placeholder="Ingrese el valor de oxigeno")
-            with col5:
+            with col4:
                 luz = st.text_input("⚡ Luz (lux)", key=f"luz_{dispositivo}", help="Rango: 0.00 - 3000.00 (lux)", placeholder="Ingrese el valor de luz")
-            with col6:
+            with col5:
                 enviado = st.form_submit_button("📩 Enviar registro")
         
         # Manejar el botón de envío
@@ -585,7 +580,6 @@ def mostrar_registro_manual():
             campos = {
                 "temperatura": temperatura,
                 "ph": ph,
-                "turbidez": turbidez,
                 "oxigeno": oxigeno,
                 "luz": luz
             }
@@ -619,7 +613,7 @@ def mostrar_registro_manual():
                 # Guardar dispositivo registrado en la sesión
                 st.session_state["ultimo_dispositivo_registrado"] = dispositivo
                 # Limpiar campos del formulario
-                for campo in ["temp", "ph", "turbidez", "oxigeno", "luz"]:
+                for campo in ["temp", "ph", "oxigeno", "luz"]:
                     st.session_state.pop(f"{campo}_{dispositivo}", None)
                 # Refrescar la página
                 st.rerun()
@@ -653,7 +647,7 @@ def mostrar_registro_manual():
             df_hist = pd.DataFrame(registros_manuales)
             df_hist["tiempo"] = pd.to_datetime(df_hist["tiempo"]).dt.strftime("%Y-%m-%d %H:%M:%S")
 
-            columnas_mostrar = ["tiempo", "temperatura", "ph", "turbidez", "oxigeno", "luz"]
+            columnas_mostrar = ["tiempo", "temperatura", "ph", "oxigeno", "luz"]
             columnas_mostrar = [col for col in columnas_mostrar if col in df_hist.columns]
 
             st.markdown(f"📋 Historial del dispositivo: `{ultimo}`")
@@ -707,7 +701,7 @@ def mostrar_historial_manual():
             df_manual = df_manual[(df_manual["tiempo"] >= f1) & (df_manual["tiempo"] < f2)]
 
         # Gráfico de evolución por variable seleccionada
-        variables = ["temperatura", "ph", "turbidez", "oxigeno", "luz"]
+        variables = ["temperatura", "ph", "oxigeno", "luz"]
         variables_disponibles = [v for v in variables if v in df_manual.columns]
 
         # Mostrar solamente las variables disponibles
@@ -754,7 +748,7 @@ def mostrar_historial_manual():
         # Tabla colapsable, permite ver tabla completa de los registros debajo del gráfico
         with st.expander("📄 Ver tabla de registros manuales"):
             df_manual["tiempo"] = df_manual["tiempo"].dt.strftime("%Y-%m-%d %H:%M:%S")
-            columnas = ["tiempo", "id_dispositivo", "temperatura", "ph", "turbidez", "oxigeno", "luz"]
+            columnas = ["tiempo", "id_dispositivo", "temperatura", "ph", "oxigeno", "luz"]
             columnas = [col for col in columnas if col in df_manual.columns]
             st.dataframe(df_manual[columnas], use_container_width=True)
 
@@ -804,7 +798,7 @@ def mostrar_registro_manual_vs_sensor():
         df["fecha"] = df["tiempo"].dt.date
 
         # Variables a comparar
-        vars_medibles = ["temperatura", "ph", "turbidez", "oxigeno", "luz"]
+        vars_medibles = ["temperatura", "ph", "oxigeno", "luz"]
 
         # Separar registros manuales y automáticos
         df_manual = df[df["manual"] == True].copy()
