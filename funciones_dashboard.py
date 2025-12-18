@@ -16,11 +16,11 @@ MONGO_URI = st.secrets["MONGO_URI"]
 
 # --- UMBRALES DE VARIABLES AMBIENTALES ---
 UMBRAL = {
-    "temperatura": (18, 30),
-    "ph": (6.0, 9.0),
+    "temperatura": (18, 27),
+    "ph": (6.0, 9.5),
     "turbidez": (0, 100),
-    "oxigeno": (3, 12),
-    "luz": (50, 70000)
+    "oxigeno": (3, 25),
+    "luz": (0, 5000)
 }
 
 # --- UTILIDADES ---
