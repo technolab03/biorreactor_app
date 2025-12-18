@@ -908,7 +908,7 @@ def mostrar_registro_manual_vs_sensor():
 
 # --- MODELO ---
 def mostrar_modelo():
-    st.subheader("🤖 Predicción de fase del cultivo (Modelo GRU)")
+    st.subheader("🤖 Clasificación de fase del cultivo (Modelo GRU)")
 
     # Consulta a colección clasificaciones
     client = MongoClient(MONGO_URI)
